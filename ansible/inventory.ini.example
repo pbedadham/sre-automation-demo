@@ -1,0 +1,2 @@
+[orders_api]
+ec2-demo ansible_host=203.0.113.25 ansible_user=ec2-user

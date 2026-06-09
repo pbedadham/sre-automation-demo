@@ -4,18 +4,19 @@ This document presents the project narrative, architecture, demo flow, and key e
 
 ## 1. Opening Story
 
-This demo shows how I would automate deployment of a microservice onto cloud infrastructure. Terraform owns infrastructure state. Python owns workflow orchestration, validation, deployment safety, rollback, observability, and CI/CD integration.
+This demo shows how I would automate deployment of a containerized microservice onto cloud infrastructure. Terraform owns infrastructure state. Python owns workflow orchestration, validation, deployment safety, rollback, observability, and CI/CD integration. Ansible handles host configuration and application runtime setup for the EC2 path.
 
 ## 2. Architecture Sketch
 
 ```text
-PR -> CI -> Terraform plan -> approval -> Python orchestrator -> Terraform apply
-                                                        |
-                                                        +-> deploy artifact
-                                                        +-> smoke checks
-                                                        +-> health/SLO validation
-                                                        +-> rollback
-                                                        +-> logs/metrics
+PR -> CI -> container build -> Terraform plan -> approval -> deploy
+                                                 |
+                                                 +-> EC2 provisioning
+                                                 +-> Ansible Docker setup
+                                                 +-> container rollout
+                                                 +-> smoke checks
+                                                 +-> health/SLO validation
+                                                 +-> logs/metrics
 ```
 
 Key points:
@@ -24,6 +25,7 @@ Key points:
 - Use environment-specific config and secret references, not environment-specific code.
 - Keep Terraform modules reusable and state isolated per environment.
 - Make production changes auditable through pull requests, plans, approvals, and deployment records.
+- Use Ansible for repeatable host configuration when deploying to VM-based infrastructure.
 
 ## 3. Code Walkthrough
 
@@ -42,6 +44,10 @@ Show:
 - `src/sre_automation/secrets.py`: validates secret references without exposing values.
 - `examples/config/*.yaml`: environment promotion model.
 - `.github/workflows/ci.yml`: CI/CD gates and deployment approval.
+- `app/main.py`: small FastAPI service with health, readiness, metrics, and sample API endpoints.
+- `app/Dockerfile`: container packaging for the application.
+- `terraform/modules/ec2_app`: AWS EC2 infrastructure module.
+- `ansible/playbooks/deploy_app.yml`: host configuration and container rollout.
 
 ## 4. Demo Commands
 
@@ -69,15 +75,34 @@ sre-deploy deploy \
   --dry-run
 ```
 
+Container build:
+
+```bash
+docker build -t orders-api:local app
+docker run --rm -p 8080:8080 orders-api:local
+```
+
+EC2 provisioning path:
+
+```bash
+cd terraform/envs/aws-dev
+terraform init
+terraform plan \
+  -var="ami_id=ami-0123456789abcdef0" \
+  -var="key_name=my-ec2-keypair" \
+  -var='ssh_cidr_blocks=["203.0.113.10/32"]'
+```
+
 Point out the structured JSON events in stdout. In production, these would be shipped to OpenSearch/Loki and converted to metrics through OpenTelemetry or a collector.
 
 ## 5. CI/CD Explanation
 
-The workflow has three layers:
+The workflow has four layers:
 
 - Python job: install, lint, unit test.
-- Terraform job: format, init without backend, validate.
-- Deploy job: manual dispatch with GitHub environment approval.
+- Container job: build the FastAPI image and push to GHCR outside pull requests.
+- Terraform job: format, init without backend, validate local and EC2 environments.
+- Deploy jobs: dry-run orchestrator or real EC2 provisioning plus Ansible deployment.
 
 For production I would add:
 

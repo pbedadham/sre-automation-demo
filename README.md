@@ -6,7 +6,10 @@ This repository presents a Python-driven SRE automation project. It shows how Py
 
 - Python-driven SRE automation for provisioning and deployment workflows
 - Terraform module and environment layout for dev, staging, and prod
+- Real AWS EC2 provisioning example for a containerized FastAPI service
+- Ansible configuration management to install Docker and run the service
 - CI/CD gates for linting, testing, Terraform planning, and production approval
+- GitHub Actions build, push, provision, and deploy flow
 - Secret and configuration handling patterns
 - Observability hooks for deployment logs, metrics, health checks, and rollback
 - Generative AI recommendations for SRE productivity
@@ -21,6 +24,7 @@ Developer PR
 GitHub Actions
    |
    +-- Python lint/test
+   +-- Docker build/push to GHCR
    +-- Terraform fmt/validate/plan
    +-- security scanning placeholder
    |
@@ -39,7 +43,7 @@ Python deployment orchestrator
    +-- rollback on failure
    |
    v
-Cloud infrastructure + Kubernetes/ECS/VMs
+EC2 + Docker + FastAPI service
    |
    v
 Prometheus/Grafana/OpenSearch/Alertmanager
@@ -50,6 +54,14 @@ Prometheus/Grafana/OpenSearch/Alertmanager
 ```text
 .
 ├── .github/workflows/ci.yml
+├── ansible/
+│   ├── ansible.cfg
+│   ├── inventory.ini.example
+│   └── playbooks/deploy_app.yml
+├── app/
+│   ├── Dockerfile
+│   ├── main.py
+│   └── requirements.txt
 ├── docs/
 │   ├── presentation.md
 │   ├── observability.md
@@ -68,8 +80,11 @@ Prometheus/Grafana/OpenSearch/Alertmanager
 │   ├── secrets.py
 │   └── terraform.py
 ├── terraform/
-│   ├── modules/service/
+│   ├── modules/
+│   │   ├── ec2_app/
+│   │   └── service/
 │   └── envs/
+│       ├── aws-dev/
 │       ├── dev/
 │       ├── staging/
 │       └── prod/
@@ -105,10 +120,50 @@ sre-deploy plan \
   --dry-run
 ```
 
+Run the FastAPI app locally:
+
+```bash
+cd app
+pip install -r requirements.txt
+uvicorn main:app --host 0.0.0.0 --port 8080
+```
+
+Build the application container locally:
+
+```bash
+docker build -t orders-api:local app
+docker run --rm -p 8080:8080 orders-api:local
+```
+
+## EC2 Deployment Path
+
+The `terraform/envs/aws-dev` environment provisions:
+
+- EC2 instance
+- security group for application traffic and optional SSH
+- IAM role and instance profile with SSM access
+- encrypted root EBS volume
+- outputs for public IP, DNS, and application health URL
+
+The Ansible playbook then:
+
+- installs Docker
+- logs in to GitHub Container Registry when credentials are provided
+- pulls the application image
+- runs the FastAPI container
+- validates `/health`
+
+For a real GitHub Actions deployment, configure these repository secrets:
+
+- `AWS_ROLE_TO_ASSUME`: IAM role used by GitHub OIDC
+- `EC2_SSH_PRIVATE_KEY`: private key matching the EC2 key pair
+
+Then run the workflow manually with `deploy_target=aws-ec2`, an Amazon Linux 2023 `ami_id`, `key_name`, and an SSH CIDR allowlist.
+
 ## Presentation Guide
 
 [docs/presentation.md](docs/presentation.md) provides the project narrative, architecture diagrams, demo commands, and key technical points.
 
 ## Important Note
 
-The Terraform code intentionally uses `null_resource` and local commands so the demo can run without cloud credentials. In a real AWS or GCP implementation, the same module boundaries would provision cloud networking, compute, IAM, secrets integration, and observability resources.
+The default Terraform environments use `null_resource` so the core demo can run without cloud credentials. The `aws-dev` environment shows the real EC2 path for provisioning infrastructure and deploying the containerized application.

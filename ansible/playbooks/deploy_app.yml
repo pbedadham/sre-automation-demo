@@ -1,0 +1,72 @@
+---
+- name: Configure EC2 host and run Orders API container
+  hosts: orders_api
+  become: true
+  vars:
+    app_name: orders-api
+    app_port: 8080
+    container_port: 8080
+    image_ref: ghcr.io/example/sre-automation-demo:latest
+    environment: dev
+    ghcr_username: ""
+    ghcr_token: ""
+  tasks:
+    - name: Install Docker and Python package tooling
+      ansible.builtin.dnf:
+        name:
+          - docker
+          - python3-pip
+        state: present
+
+    - name: Enable and start Docker
+      ansible.builtin.service:
+        name: docker
+        state: started
+        enabled: true
+
+    - name: Add ec2-user to docker group
+      ansible.builtin.user:
+        name: ec2-user
+        groups: docker
+        append: true
+
+    - name: Install Docker SDK for Python
+      ansible.builtin.pip:
+        name: docker
+        executable: pip3
+
+    - name: Log in to GitHub Container Registry
+      community.docker.docker_login:
+        registry_url: ghcr.io
+        username: "{{ ghcr_username }}"
+        password: "{{ ghcr_token }}"
+      no_log: true
+      when: ghcr_username | length > 0 and ghcr_token | length > 0
+
+    - name: Pull application image
+      community.docker.docker_image:
+        name: "{{ image_ref }}"
+        source: pull
+        force_source: true
+
+    - name: Run application container
+      community.docker.docker_container:
+        name: "{{ app_name }}"
+        image: "{{ image_ref }}"
+        restart_policy: always
+        recreate: true
+        published_ports:
+          - "{{ app_port }}:{{ container_port }}"
+        env:
+          ENVIRONMENT: "{{ environment }}"
+          APP_VERSION: "{{ image_ref }}"
+
+    - name: Wait for health endpoint
+      ansible.builtin.uri:
+        url: "http://127.0.0.1:{{ app_port }}/health"
+        method: GET
+        status_code: 200
+      register: health_check
+      retries: 12
+      delay: 5
+      until: health_check.status == 200
