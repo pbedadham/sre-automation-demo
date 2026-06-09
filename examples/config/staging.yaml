@@ -1,0 +1,12 @@
+environment: staging
+region: us-west-2
+terraform_dir: terraform/envs/staging
+approval_required: false
+min_healthy_instances: 2
+service:
+  name: orders-api
+  port: 8080
+  health_url: https://staging.example.internal/orders-api/health
+secret_refs:
+  db_password: aws-secretsmanager://staging/orders-api/db_password
+  api_token: vault://kv/staging/orders-api/api_token

@@ -1,0 +1,12 @@
+environment: dev
+region: us-west-2
+terraform_dir: terraform/envs/dev
+approval_required: false
+min_healthy_instances: 1
+service:
+  name: orders-api
+  port: 8080
+  health_url: https://dev.example.internal/orders-api/health
+secret_refs:
+  db_password: aws-secretsmanager://dev/orders-api/db_password
+  api_token: vault://kv/dev/orders-api/api_token

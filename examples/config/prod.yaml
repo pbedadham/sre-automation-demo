@@ -1,0 +1,12 @@
+environment: prod
+region: us-east-1
+terraform_dir: terraform/envs/prod
+approval_required: true
+min_healthy_instances: 3
+service:
+  name: orders-api
+  port: 8080
+  health_url: https://api.example.com/orders-api/health
+secret_refs:
+  db_password: aws-secretsmanager://prod/orders-api/db_password
+  api_token: vault://kv/prod/orders-api/api_token
