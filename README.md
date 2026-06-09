@@ -1,6 +1,6 @@
 # SRE Automation Demo
 
-This repository is a screen-share friendly demo for an Infrastructure/SRE discussion. It shows how Python can orchestrate safe infrastructure deployment workflows while Terraform remains the declarative source of truth for cloud resources.
+This repository presents a Python-driven SRE automation project. It shows how Python can orchestrate safe infrastructure deployment workflows while Terraform remains the declarative source of truth for cloud resources.
 
 ## What This Demonstrates
 
@@ -105,9 +105,9 @@ sre-deploy plan \
   --dry-run
 ```
 
-## Presentation Flow
+## Presentation Guide
 
-Use [docs/presentation.md](docs/presentation.md) as the one-hour discussion guide. It includes the story, diagrams, demo commands, and expected talking points.
+[docs/presentation.md](docs/presentation.md) provides the project narrative, architecture diagrams, demo commands, and key technical points.
 
 ## Important Note
 

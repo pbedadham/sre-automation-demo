@@ -1,6 +1,6 @@
 # SRE Automation Demo Presentation
 
-Use this document as the screen-share script for a one-hour interactive discussion.
+This document presents the project narrative, architecture, demo flow, and key engineering decisions.
 
 ## 1. Opening Story
 
