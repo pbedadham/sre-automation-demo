@@ -10,7 +10,7 @@ This repository presents a Python-driven SRE automation project. It shows how Py
 - Secret and configuration handling patterns
 - Observability hooks for deployment logs, metrics, health checks, and rollback
 - Generative AI recommendations for SRE productivity
-- Insider-risk evaluation criteria relevant to DTEX-style platforms
+- Insider-risk evaluation criteria for enterprise security platforms
 
 ## Architecture
 

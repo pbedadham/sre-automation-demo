@@ -10,7 +10,7 @@ terraform {
 
   # Example production backend:
   # backend "s3" {
-  #   bucket         = "company-terraform-state-prod"
+  #   bucket         = "org-terraform-state-prod"
   #   key            = "orders-api/prod.tfstate"
   #   region         = "us-east-1"
   #   dynamodb_table = "terraform-locks"
