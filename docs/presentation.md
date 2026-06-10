@@ -1,90 +1,91 @@
-# SRE Automation Demo Presentation
+# SRE Automation Demo - 30 Minute Walkthrough
 
-This is the narrative I use to explain the project, the architecture, and the main engineering decisions.
+This is the version I use when I need to keep the discussion focused. The goal is to show the end-to-end design, then leave enough time for questions.
 
-## 1. Project Overview
+## Agenda
 
-I built this as a practical SRE automation example for deploying a containerized Python service onto cloud infrastructure. The design separates responsibilities clearly:
+```text
+00:00-03:00  Project overview
+03:00-08:00  Architecture and repository structure
+08:00-15:00  Python automation, Terraform, Ansible, and CI/CD
+15:00-20:00  Secrets, promotion, observability, and rollback
+20:00-24:00  Generative AI for SRE
+24:00-28:00  Insider risk evaluation
+28:00-30:00  Summary and questions
+```
+
+## Project Overview
+
+I built this as a practical SRE automation example for deploying a containerized Python service onto cloud infrastructure.
+
+The responsibilities are separated deliberately:
 
 - Terraform manages infrastructure state.
-- Python coordinates deployment workflow, validation, retries, logging, metrics, and rollback.
+- Python coordinates deployment workflow, validation, retries, logs, metrics, and rollback.
 - Ansible configures the EC2 host and runs the application container.
 - Docker packages the FastAPI service.
-- GitHub Actions connects code changes to build, validation, and deployment.
+- GitHub Actions provides the controlled path from commit to deployment.
 
-The main idea is that infrastructure automation should be repeatable, observable, and safe to promote across environments.
+The main principle is repeatable, observable infrastructure and application deployment.
 
-## 2. Architecture
+## Architecture
 
 ```mermaid
 flowchart LR
     Dev[Developer PR or Push] --> GA[GitHub Actions]
 
-    GA --> Test[Python Tests and Ruff]
+    GA --> Test[Tests and Lint]
     GA --> Build[Build Docker Image]
-    Build --> GHCR[GitHub Container Registry]
-    GA --> TFCheck[Terraform fmt and validate]
+    Build --> GHCR[GHCR]
+    GA --> TFCheck[Terraform Validate]
 
     GA --> Gate[Environment Approval]
-    Gate --> Choice{Deploy Target}
+    Gate --> Target{Deploy Target}
 
-    Choice --> DryRun[Python Orchestrator Dry Run]
-    Choice --> EC2Path[Terraform Apply aws-dev]
+    Target --> DryRun[Python Dry Run]
+    Target --> TFApply[Terraform EC2 Apply]
 
-    EC2Path --> AWS[(AWS)]
-    AWS --> EC2[EC2 Instance]
-    EC2Path --> Outputs[Public IP and App URL]
-    Outputs --> Ansible[Ansible Playbook]
+    TFApply --> EC2[EC2 Instance]
+    EC2 --> Ansible[Ansible Configure Host]
     GHCR --> Ansible
-    Ansible --> Docker[Docker on EC2]
-    Docker --> App[FastAPI Orders API]
+    Ansible --> App[FastAPI Container]
 
-    App --> Health[/health and /ready]
+    App --> Health[/health /ready]
     App --> Metrics[/metrics]
-    DryRun --> Events[Structured Logs and Metrics]
+    DryRun --> Events[Structured Events]
     Health --> Events
-    Metrics --> Obs[Prometheus, Grafana, OpenSearch]
+    Metrics --> Obs[Prometheus Grafana OpenSearch]
 ```
 
-The artifact flow is intentionally simple: build the image once, tag it immutably, and promote that same image through environments. Environment differences live in config, Terraform variables, and secret references.
+Artifact flow:
 
-## 3. Codebase Structure
+```text
+FastAPI app -> Docker image -> GHCR -> EC2 -> Ansible rollout -> health check
+```
 
-The repo is organized around ownership boundaries:
+Environment flow:
 
-- `app/`: the FastAPI service and Dockerfile.
-- `src/sre_automation/`: the Python automation package.
-- `terraform/modules/`: reusable infrastructure modules.
-- `terraform/envs/`: environment-specific Terraform roots.
-- `ansible/`: host configuration and application rollout.
-- `.github/workflows/ci.yml`: CI/CD workflow.
-- `examples/config/`: environment config for the Python orchestrator.
-- `docs/`: supporting material for observability, GenAI, and insider risk.
+```text
+dev -> staging -> prod
+same image tag, different config and infrastructure variables
+```
 
-Files I focus on during the walkthrough:
+## Codebase Walkthrough
 
-- `src/sre_automation/cli.py`: command entry point.
-- `src/sre_automation/deploy.py`: deployment orchestration flow.
-- `src/sre_automation/terraform.py`: Terraform wrapper with retries and timing metrics.
-- `src/sre_automation/secrets.py`: secret reference validation.
-- `app/main.py`: FastAPI app with health, readiness, metrics, and sample API endpoints.
-- `terraform/modules/ec2_app/main.tf`: EC2, security group, IAM, and root volume.
-- `ansible/playbooks/deploy_app.yml`: Docker install, image pull, container run, and health check.
+I focus on these files:
 
-## 4. Python-Driven SRE Automation
+- `app/main.py`: FastAPI app with `/health`, `/ready`, `/metrics`, and sample order endpoint.
+- `app/Dockerfile`: container packaging.
+- `src/sre_automation/deploy.py`: Python deployment orchestration.
+- `src/sre_automation/terraform.py`: Terraform wrapper with retries, dry-run, and timing metrics.
+- `src/sre_automation/secrets.py`: validates secret references without exposing values.
+- `terraform/modules/ec2_app/main.tf`: EC2, security group, IAM instance profile, encrypted root volume.
+- `ansible/playbooks/deploy_app.yml`: installs Docker, pulls the image, runs the container, validates `/health`.
+- `.github/workflows/ci.yml`: test, build, validate, dry-run deploy, and EC2 deploy flow.
 
-The Python layer is responsible for operational workflow, not for replacing Terraform.
+## Python-Driven SRE Automation
 
-In this project, Python:
-
-- loads typed environment config
-- validates secret references
-- runs Terraform `init`, `plan`, and `apply`
-- supports dry-run execution
-- emits structured deployment events
-- measures command and deployment duration
-- runs smoke and health checks
-- calls rollback logic when deployment fails
+Python is the workflow layer. Terraform remains the source of truth for infrastructure.
 
 The deployment path is:
 
@@ -99,76 +100,42 @@ sre-deploy deploy
   -> rollback on failure
 ```
 
-I keep Terraform as the source of truth for desired infrastructure state. Python gives me the control plane around that state: safety checks, promotion rules, observability, and rollback behavior.
+What Python adds:
 
-## 5. Demo Commands
+- typed config loading
+- dry-run mode
+- retries around command execution
+- structured deployment events
+- duration metrics
+- rollback hook
+- a consistent CLI for operators and CI/CD
 
-Run the local verification:
+## CI/CD
 
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -e ".[dev]"
-pip install -r app/requirements.txt
-pytest
-ruff check .
-```
+The GitHub Actions workflow has four jobs:
 
-Run a safe dry-run plan:
+- `python`: install dependencies, run `ruff`, run tests.
+- `container`: build the FastAPI Docker image and push to GHCR when needed.
+- `terraform`: validate both the safe local Terraform env and the AWS EC2 env.
+- `deploy-dry-run` / `deploy-aws-ec2`: either run the orchestrator safely or provision EC2 and deploy with Ansible.
 
-```bash
-sre-deploy plan --config examples/config/dev.yaml --image-tag sha-demo123 --dry-run
-```
+For a real EC2 deploy, the workflow expects:
 
-Run a safe dry-run deployment:
+- `AWS_ROLE_TO_ASSUME`
+- `EC2_SSH_PRIVATE_KEY`
+- `ami_id`, `key_name`, region, instance type, and SSH CIDR workflow inputs
 
-```bash
-sre-deploy deploy \
-  --config examples/config/prod.yaml \
-  --image-tag sha-demo123 \
-  --previous-image-tag sha-previous \
-  --dry-run
-```
+Production improvements I would add:
 
-Build and run the application container:
+- Terraform plan artifacts on PRs
+- Checkov or tfsec policy checks
+- SBOM and image vulnerability scanning
+- stricter environment approvals
+- remote state with locking for every shared environment
 
-```bash
-docker build -t orders-api:local app
-docker run --rm -p 8080:8080 orders-api:local
-curl http://127.0.0.1:8080/health
-```
+## Secrets, Config, And Promotion
 
-Review the EC2 provisioning path:
-
-```bash
-cd terraform/envs/aws-dev
-terraform init
-terraform plan \
-  -var="ami_id=ami-0123456789abcdef0" \
-  -var="key_name=my-ec2-keypair" \
-  -var='ssh_cidr_blocks=["203.0.113.10/32"]'
-```
-
-## 6. CI/CD Flow
-
-The GitHub Actions workflow has four main parts:
-
-- `python`: installs dependencies, runs linting, and runs tests.
-- `container`: builds the FastAPI Docker image and pushes it to GHCR when deployment needs a published artifact.
-- `terraform`: validates both the safe local Terraform environment and the AWS EC2 environment.
-- `deploy-dry-run` / `deploy-aws-ec2`: either runs the Python orchestrator safely or provisions EC2 and deploys the container with Ansible.
-
-For the real EC2 path, the workflow expects:
-
-- `AWS_ROLE_TO_ASSUME`: IAM role for GitHub OIDC.
-- `EC2_SSH_PRIVATE_KEY`: SSH key used by Ansible.
-- workflow inputs for `ami_id`, `key_name`, region, instance type, and SSH CIDR allowlist.
-
-In a production version, I would also add Terraform plan artifacts, policy checks, SBOM generation, image vulnerability scanning, and stricter environment approval rules.
-
-## 7. Secrets, Config, And Promotion
-
-The environment YAML files contain secret references, not secret values:
+The repo uses references, not raw secrets:
 
 ```yaml
 secret_refs:
@@ -176,76 +143,56 @@ secret_refs:
   api_token: vault://kv/prod/orders-api/api_token
 ```
 
-The promotion model is:
+The image is built once and promoted by tag. That avoids rebuilding different artifacts for each environment.
 
-```text
-dev -> staging -> prod
-same image tag, different environment config
-```
+## Observability And Rollback
 
-That keeps the artifact immutable. The service is not rebuilt for each environment; only the runtime configuration and infrastructure variables change.
-
-## 8. Observability And Error Handling
-
-The automation emits structured events such as:
+The automation emits structured events:
 
 - `deployment_started`
 - `command_started`
 - `metric`
 - `smoke_check_completed`
 - `service_health_validated`
-- `deployment_completed`
 - `rollback_started`
 
-The application also exposes:
+The app exposes:
 
 - `/health`
 - `/ready`
 - `/metrics`
 
-In production, I would ship deployment logs to OpenSearch or Loki, scrape service metrics with Prometheus or OpenTelemetry, and build dashboards in Grafana. Alerts should focus on user impact: failed deployments, rollback failures, elevated 5xx rate, latency SLO violations, queue age, and error-budget burn.
+In production I would send logs to OpenSearch or Loki, scrape metrics with Prometheus or OpenTelemetry, and use Grafana dashboards. Alerts should focus on user impact: failed deploys, rollback failures, 5xx rate, latency SLOs, queue age, and error-budget burn.
 
-## 9. Rollback
+Rollback is modeled as a deployment phase, not an improvised incident command. The automation records the previous image tag, emits rollback events, and would re-run health checks after restoration.
 
-Rollback is modeled as an explicit deployment phase. The automation records the previous image tag, attempts to restore it on failure, emits rollback events, and would re-run health checks after restoration in a production implementation.
+## Generative AI For SRE
 
-The important point is that rollback should be tested and observable. It should not be a manual command someone invents during an incident.
-
-## 10. Generative AI For SRE
-
-I would use Generative AI to reduce operational toil and cognitive load:
+I would use AI to reduce toil and cognitive load:
 
 - summarize incidents from alerts, logs, deploy history, and chat timelines
 - retrieve relevant runbook sections
 - draft postmortems from verified facts
-- generate test cases for Python automation
+- generate tests for Python automation
 - explain Terraform plans during review
 - identify noisy alerts and suggest tuning
-- provide a read-only ChatOps assistant for service state
+- provide read-only ChatOps support
 
-The guardrails matter:
+Guardrails:
 
 - read-only by default
 - no secrets in prompts
-- RBAC and audit logging
+- RBAC and audit logs
 - human approval for destructive actions
-- generated code still goes through tests, scanning, and review
+- generated code still goes through tests, scans, and review
 
 AI should speed up investigation and routine work. It should not bypass operational controls.
 
-## 11. Insider Risk Evaluation
+## Insider Risk Evaluation
 
-I define insider risk as the potential for harm caused by trusted users or compromised trusted identities misusing or mishandling authorized access.
+I define insider risk as harm caused by trusted users or compromised trusted identities misusing or mishandling authorized access.
 
-That includes:
-
-- malicious insiders
-- negligent users
-- compromised accounts
-- privilege misuse
-- data exfiltration
-- policy bypass
-- risky behavior around sensitive systems or data
+That includes malicious insiders, negligent users, compromised accounts, privilege misuse, data exfiltration, policy bypass, and risky behavior around sensitive systems or data.
 
 When evaluating an insider-risk platform, I look for:
 
@@ -253,21 +200,21 @@ When evaluating an insider-risk platform, I look for:
 - peer-group baselining and behavioral analytics
 - explainable risk scoring
 - low false-positive burden
-- visibility across endpoint, cloud, SaaS, server, and privileged-account activity
+- endpoint, cloud, SaaS, server, and privileged-account visibility
 - privacy controls such as role-based access, pseudonymization, minimization, and audit trails
 - SIEM, SOAR, ticketing, and identity-provider integrations
-- operational scalability and endpoint performance
+- scalability and endpoint performance
 
-The platform has to produce explainable, prioritized, privacy-aware signals. Detecting events is not enough if analysts cannot trust or act on the results.
+The tool needs to produce explainable, prioritized, privacy-aware signals. Detecting events is not enough if analysts cannot trust or act on the results.
 
-## 12. Summary
+## Summary
 
-The main design principle is using each tool at the right layer:
+The design uses each tool at the right layer:
 
-- Terraform manages desired infrastructure state.
-- Python coordinates safe deployment workflows around that state.
-- Ansible makes host configuration repeatable.
-- Docker makes the application artifact portable.
-- GitHub Actions provides the controlled path from commit to deployment.
+- Terraform for desired infrastructure state.
+- Python for safe deployment orchestration.
+- Ansible for repeatable host configuration.
+- Docker for portable application packaging.
+- GitHub Actions for controlled delivery.
 
-This gives me a repeatable infrastructure and application deployment model with validation, observability, and room to mature into stricter production controls.
+This gives me an end-to-end infrastructure and application deployment model with validation, observability, rollback hooks, and a clear path to production hardening.
