@@ -153,14 +153,14 @@ The Ansible playbook then:
 - runs the FastAPI container
 - validates `/health`
 
-For a real GitHub Actions deployment, configure these repository secrets:
+For a real GitHub Actions deployment with `deploy_target=aws-ec2`, configure these repository secrets:
 
 - `AWS_ROLE_TO_ASSUME`: IAM role used by GitHub OIDC
 - `EC2_SSH_PRIVATE_KEY`: private key matching the EC2 key pair
 - `DOCKERHUB_USERNAME`: Docker Hub username
 - `DOCKERHUB_TOKEN`: Docker Hub access token
 
-Set the optional repository variable `DOCKERHUB_REPOSITORY` if the image should be pushed somewhere other than `pbedadham/sre-automation-demo`. Then run the workflow manually with `deploy_target=aws-ec2`, an Amazon Linux 2023 `ami_id`, `key_name`, and an SSH CIDR allowlist.
+Regular pull requests and pushes build the image without pushing it. Set the optional repository variable `DOCKERHUB_REPOSITORY` if the image should be pushed somewhere other than `pbedadham/sre-automation-demo`. Then run the workflow manually with `deploy_target=aws-ec2`, an Amazon Linux 2023 `ami_id`, `key_name`, and an SSH CIDR allowlist.
 
 ## Presentation Guide
 
