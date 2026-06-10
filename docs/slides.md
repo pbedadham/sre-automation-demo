@@ -1,6 +1,6 @@
 # SRE Automation Demo
 
-## Slide 1: What I Built
+## What I Built
 
 I built a small end-to-end SRE automation demo that provisions infrastructure, builds a Python application, deploys it as a container, and validates health.
 
@@ -14,7 +14,7 @@ FastAPI app -> Docker image -> Docker Hub -> EC2 -> Ansible rollout -> health ch
 
 ---
 
-## Slide 2: Architecture
+## Architecture
 
 ```mermaid
 flowchart TD
@@ -38,7 +38,7 @@ The architecture separates deterministic automation from workflow orchestration.
 
 ---
 
-## Slide 3: Why This Stack
+## Why This Stack
 
 | Need | Tool | Reason |
 |---|---|---|
@@ -53,7 +53,7 @@ I use each tool at the layer where it is strongest.
 
 ---
 
-## Slide 4: Python-Driven SRE Automation
+## Python-Driven SRE Automation
 
 Python is the workflow layer. Terraform remains the source of truth for infrastructure.
 
@@ -78,7 +78,7 @@ sre-deploy deploy
 
 ---
 
-## Slide 5: Infrastructure And Application Deployment
+## Infrastructure And Application Deployment
 
 The repo demonstrates both infrastructure and application delivery.
 
@@ -100,7 +100,7 @@ Application:
 
 ---
 
-## Slide 6: CI/CD And Promotion
+## CI/CD And Promotion
 
 GitHub Actions provides the controlled path from commit to deployment.
 
@@ -123,7 +123,7 @@ This makes rollback clearer because the artifact is immutable.
 
 ---
 
-## Slide 7: Secrets, Observability, And Rollback
+## Secrets, Observability, And Rollback
 
 Secrets are referenced, not stored:
 
@@ -144,7 +144,7 @@ Rollback is treated as a deployment phase, not an improvised incident command.
 
 ---
 
-## Slide 8: Where AI Fits In SRE
+## Where AI Fits In SRE
 
 I would use AI to reduce toil and cognitive load, not to bypass controls.
 
@@ -162,7 +162,7 @@ AI is most useful when it gathers context and calls deterministic automation beh
 
 ---
 
-## Slide 9: AI Guardrails
+## AI Guardrails
 
 The AI layer should be constrained.
 
@@ -184,7 +184,7 @@ AI gathers context -> AI recommends -> human approves -> automation executes
 
 ---
 
-## Slide 10: Insider Risk Evaluation
+## Insider Risk Evaluation
 
 I define insider risk as harm caused by trusted users or compromised trusted identities misusing or mishandling authorized access.
 
