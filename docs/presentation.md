@@ -1,6 +1,6 @@
 # SRE Automation Demo - 30 Minute Walkthrough
 
-This is the version I use when I need to keep the discussion focused. The goal is to show the end-to-end design, then leave enough time for questions.
+I will keep this focused on the end-to-end design: how I provision infrastructure, build the application, deploy it, validate it, and make the workflow observable.
 
 ## Agenda
 
@@ -16,9 +16,9 @@ This is the version I use when I need to keep the discussion focused. The goal i
 
 ## Project Overview
 
-I built this as a practical SRE automation example for deploying a containerized Python service onto cloud infrastructure.
+I built this as a practical SRE automation example for deploying a containerized Python service onto AWS infrastructure.
 
-The responsibilities are separated deliberately:
+I separated the responsibilities by tool:
 
 - Terraform manages infrastructure state.
 - Python coordinates deployment workflow, validation, retries, logs, metrics, and rollback.
@@ -26,44 +26,44 @@ The responsibilities are separated deliberately:
 - Docker packages the FastAPI service.
 - GitHub Actions provides the controlled path from commit to deployment.
 
-The main principle is repeatable, observable infrastructure and application deployment.
+The goal is repeatable, observable infrastructure and application deployment, with a safe dry-run path and a real EC2 deployment path.
 
 ## Architecture
 
 ```mermaid
-flowchart LR
-    Dev[Developer PR or Push] --> GA[GitHub Actions]
+flowchart TD
+    Dev["Developer PR or Push"] --> GA["GitHub Actions"]
 
-    GA --> Test[Tests and Lint]
-    GA --> Build[Build Docker Image]
-    Build --> GHCR[GHCR]
-    GA --> TFCheck[Terraform Validate]
+    GA --> Test["Tests and Lint"]
+    GA --> Build["Build Docker Image"]
+    Build --> GHCR["GitHub Container Registry"]
+    GA --> TFCheck["Terraform Validate"]
 
-    GA --> Gate[Environment Approval]
-    Gate --> Target{Deploy Target}
+    GA --> Gate["Environment Approval"]
+    Gate --> Target{"Deploy Target"}
 
-    Target --> DryRun[Python Dry Run]
-    Target --> TFApply[Terraform EC2 Apply]
+    Target --> DryRun["Python Dry Run"]
+    Target --> TFApply["Terraform EC2 Apply"]
 
-    TFApply --> EC2[EC2 Instance]
-    EC2 --> Ansible[Ansible Configure Host]
+    TFApply --> EC2["EC2 Instance"]
+    EC2 --> Ansible["Ansible Configure Host"]
     GHCR --> Ansible
-    Ansible --> App[FastAPI Container]
+    Ansible --> App["FastAPI Container"]
 
-    App --> Health[/health /ready]
-    App --> Metrics[/metrics]
-    DryRun --> Events[Structured Events]
+    App --> Health["Health and Readiness Endpoints"]
+    App --> Metrics["Metrics Endpoint"]
+    DryRun --> Events["Structured Deployment Events"]
     Health --> Events
-    Metrics --> Obs[Prometheus Grafana OpenSearch]
+    Metrics --> Obs["Prometheus / Grafana / OpenSearch"]
 ```
 
-Artifact flow:
+The artifact flow is:
 
 ```text
 FastAPI app -> Docker image -> GHCR -> EC2 -> Ansible rollout -> health check
 ```
 
-Environment flow:
+The environment flow is:
 
 ```text
 dev -> staging -> prod
@@ -72,7 +72,7 @@ same image tag, different config and infrastructure variables
 
 ## Codebase Walkthrough
 
-I focus on these files:
+I focus on these files because they show the main engineering decisions:
 
 - `app/main.py`: FastAPI app with `/health`, `/ready`, `/metrics`, and sample order endpoint.
 - `app/Dockerfile`: container packaging.
@@ -87,7 +87,7 @@ I focus on these files:
 
 Python is the workflow layer. Terraform remains the source of truth for infrastructure.
 
-The deployment path is:
+The deployment path I am modeling is:
 
 ```text
 sre-deploy deploy
@@ -100,7 +100,7 @@ sre-deploy deploy
   -> rollback on failure
 ```
 
-What Python adds:
+Python adds the operational behavior around Terraform:
 
 - typed config loading
 - dry-run mode
@@ -112,20 +112,20 @@ What Python adds:
 
 ## CI/CD
 
-The GitHub Actions workflow has four jobs:
+The GitHub Actions workflow has four main jobs:
 
 - `python`: install dependencies, run `ruff`, run tests.
 - `container`: build the FastAPI Docker image and push to GHCR when needed.
 - `terraform`: validate both the safe local Terraform env and the AWS EC2 env.
 - `deploy-dry-run` / `deploy-aws-ec2`: either run the orchestrator safely or provision EC2 and deploy with Ansible.
 
-For a real EC2 deploy, the workflow expects:
+For a real EC2 deploy, I pass the required cloud and SSH inputs through GitHub Actions:
 
 - `AWS_ROLE_TO_ASSUME`
 - `EC2_SSH_PRIVATE_KEY`
 - `ami_id`, `key_name`, region, instance type, and SSH CIDR workflow inputs
 
-Production improvements I would add:
+If I were hardening this for production, I would add:
 
 - Terraform plan artifacts on PRs
 - Checkov or tfsec policy checks
@@ -135,7 +135,7 @@ Production improvements I would add:
 
 ## Secrets, Config, And Promotion
 
-The repo uses references, not raw secrets:
+The repo uses secret references, not raw secrets:
 
 ```yaml
 secret_refs:
@@ -143,7 +143,7 @@ secret_refs:
   api_token: vault://kv/prod/orders-api/api_token
 ```
 
-The image is built once and promoted by tag. That avoids rebuilding different artifacts for each environment.
+The image is built once and promoted by tag. That avoids rebuilding different artifacts for each environment and makes rollback much clearer.
 
 ## Observability And Rollback
 
@@ -156,13 +156,13 @@ The automation emits structured events:
 - `service_health_validated`
 - `rollback_started`
 
-The app exposes:
+The app exposes simple operational endpoints:
 
 - `/health`
 - `/ready`
 - `/metrics`
 
-In production I would send logs to OpenSearch or Loki, scrape metrics with Prometheus or OpenTelemetry, and use Grafana dashboards. Alerts should focus on user impact: failed deploys, rollback failures, 5xx rate, latency SLOs, queue age, and error-budget burn.
+In production I would send logs to OpenSearch or Loki, scrape metrics with Prometheus or OpenTelemetry, and use Grafana dashboards. I would alert on user-impacting signals: failed deploys, rollback failures, 5xx rate, latency SLOs, queue age, and error-budget burn.
 
 Rollback is modeled as a deployment phase, not an improvised incident command. The automation records the previous image tag, emits rollback events, and would re-run health checks after restoration.
 
@@ -178,7 +178,7 @@ I would use AI to reduce toil and cognitive load:
 - identify noisy alerts and suggest tuning
 - provide read-only ChatOps support
 
-Guardrails:
+The guardrails are important:
 
 - read-only by default
 - no secrets in prompts
