@@ -1,18 +1,6 @@
-# SRE Automation Demo - 30 Minute Walkthrough
+# SRE Automation Demo
 
 I will keep this focused on the end-to-end design: how I provision infrastructure, build the application, deploy it, validate it, and make the workflow observable.
-
-## Agenda
-
-```text
-00:00-03:00  Project overview
-03:00-08:00  Architecture and repository structure
-08:00-15:00  Python automation, Terraform, Ansible, and CI/CD
-15:00-20:00  Secrets, promotion, observability, and rollback
-20:00-24:00  Generative AI for SRE
-24:00-28:00  Insider risk evaluation
-28:00-30:00  Summary and questions
-```
 
 ## Project Overview
 
@@ -70,7 +58,7 @@ dev -> staging -> prod
 same image tag, different config and infrastructure variables
 ```
 
-## Codebase Walkthrough
+## Codebase Structure
 
 I focus on these files because they show the main engineering decisions:
 
