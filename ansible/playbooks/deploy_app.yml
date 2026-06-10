@@ -6,10 +6,10 @@
     app_name: orders-api
     app_port: 8080
     container_port: 8080
-    image_ref: ghcr.io/example/sre-automation-demo:latest
+    image_ref: docker.io/example/sre-automation-demo:latest
     environment: dev
-    ghcr_username: ""
-    ghcr_token: ""
+    dockerhub_username: ""
+    dockerhub_token: ""
   tasks:
     - name: Install Docker and Python package tooling
       ansible.builtin.dnf:
@@ -35,13 +35,13 @@
         name: docker
         executable: pip3
 
-    - name: Log in to GitHub Container Registry
+    - name: Log in to Docker Hub
       community.docker.docker_login:
-        registry_url: ghcr.io
-        username: "{{ ghcr_username }}"
-        password: "{{ ghcr_token }}"
+        registry_url: docker.io
+        username: "{{ dockerhub_username }}"
+        password: "{{ dockerhub_token }}"
       no_log: true
-      when: ghcr_username | length > 0 and ghcr_token | length > 0
+      when: dockerhub_username | length > 0 and dockerhub_token | length > 0
 
     - name: Pull application image
       community.docker.docker_image:

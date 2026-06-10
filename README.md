@@ -24,7 +24,7 @@ Developer PR
 GitHub Actions
    |
    +-- Python lint/test
-   +-- Docker build/push to GHCR
+   +-- Docker build/push to Docker Hub
    +-- Terraform fmt/validate/plan
    +-- security scanning placeholder
    |
@@ -148,7 +148,7 @@ The `terraform/envs/aws-dev` environment provisions:
 The Ansible playbook then:
 
 - installs Docker
-- logs in to GitHub Container Registry when credentials are provided
+- logs in to Docker Hub when credentials are provided
 - pulls the application image
 - runs the FastAPI container
 - validates `/health`
@@ -157,8 +157,10 @@ For a real GitHub Actions deployment, configure these repository secrets:
 
 - `AWS_ROLE_TO_ASSUME`: IAM role used by GitHub OIDC
 - `EC2_SSH_PRIVATE_KEY`: private key matching the EC2 key pair
+- `DOCKERHUB_USERNAME`: Docker Hub username
+- `DOCKERHUB_TOKEN`: Docker Hub access token
 
-Then run the workflow manually with `deploy_target=aws-ec2`, an Amazon Linux 2023 `ami_id`, `key_name`, and an SSH CIDR allowlist.
+Set the optional repository variable `DOCKERHUB_REPOSITORY` if the image should be pushed somewhere other than `pbedadham/sre-automation-demo`. Then run the workflow manually with `deploy_target=aws-ec2`, an Amazon Linux 2023 `ami_id`, `key_name`, and an SSH CIDR allowlist.
 
 ## Presentation Guide
 

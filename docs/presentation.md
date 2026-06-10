@@ -24,7 +24,7 @@ flowchart TD
 
     GA --> Test["Tests and Lint"]
     GA --> Build["Build Docker Image"]
-    Build --> GHCR["GitHub Container Registry"]
+    Build --> DockerHub["Docker Hub"]
     GA --> TFCheck["Terraform Validate"]
 
     GA --> Gate["Environment Approval"]
@@ -35,7 +35,7 @@ flowchart TD
 
     TFApply --> EC2["EC2 Instance"]
     EC2 --> Ansible["Ansible Configure Host"]
-    GHCR --> Ansible
+    DockerHub --> Ansible
     Ansible --> App["FastAPI Container"]
 
     App --> Health["Health and Readiness Endpoints"]
@@ -48,7 +48,7 @@ flowchart TD
 The artifact flow is:
 
 ```text
-FastAPI app -> Docker image -> GHCR -> EC2 -> Ansible rollout -> health check
+FastAPI app -> Docker image -> Docker Hub -> EC2 -> Ansible rollout -> health check
 ```
 
 The environment flow is:
@@ -103,7 +103,7 @@ Python adds the operational behavior around Terraform:
 The GitHub Actions workflow has four main jobs:
 
 - `python`: install dependencies, run `ruff`, run tests.
-- `container`: build the FastAPI Docker image and push to GHCR when needed.
+- `container`: build the FastAPI Docker image and push to Docker Hub when needed.
 - `terraform`: validate both the safe local Terraform env and the AWS EC2 env.
 - `deploy-dry-run` / `deploy-aws-ec2`: either run the orchestrator safely or provision EC2 and deploy with Ansible.
 

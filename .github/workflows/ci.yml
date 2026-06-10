@@ -43,12 +43,11 @@ on:
 
 permissions:
   contents: read
-  packages: write
   id-token: write
 
 env:
-  REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
+  REGISTRY: docker.io
+  IMAGE_NAME: ${{ vars.DOCKERHUB_REPOSITORY || 'pbedadham/sre-automation-demo' }}
 
 jobs:
   python:
@@ -75,8 +74,8 @@ jobs:
         if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.deploy_target == 'aws-ec2')
         with:
           registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
       - id: image
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
@@ -195,8 +194,8 @@ jobs:
           ansible-playbook ansible/playbooks/deploy_app.yml \
             -e "image_ref=${{ needs.container.outputs.image_ref }}" \
             -e "environment=${{ inputs.environment }}" \
-            -e "ghcr_username=${{ github.actor }}" \
-            -e "ghcr_token=${{ secrets.GITHUB_TOKEN }}"
+            -e "dockerhub_username=${{ secrets.DOCKERHUB_USERNAME }}" \
+            -e "dockerhub_token=${{ secrets.DOCKERHUB_TOKEN }}"
       - name: Deployment summary
         run: |
           echo "Application URL: $(cat terraform/envs/aws-dev/application_url.txt)" >> "$GITHUB_STEP_SUMMARY"
